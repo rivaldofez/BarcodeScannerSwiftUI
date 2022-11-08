@@ -11,30 +11,58 @@ import AVFoundation
 
 
 struct BarcodeScanPage: View {
+    @State var result: String? = ""
+    
     var body: some View {
-        /*@START_MENU_TOKEN@*//*@PLACEHOLDER=Hello, world!@*/Text("Hello, world!")/*@END_MENU_TOKEN@*/
+        ZStack{
+            BarcodeScanPageView(result: $result)
+            Text(result ?? "Not Detected")
+            
+        }
+        
     }
+}
+
+protocol CustomDelegate {
+    func didUpdateBarcodeResult(_ value: String?)
 }
 
 
 struct BarcodeScanPageView: UIViewControllerRepresentable {
+ 
     @Binding var result: String?
     
     func makeUIViewController(context: Context) -> some UIViewController {
-        <#code#>
+        let vc = BarcodeScanPageViewController()
+        vc.customDelegate = context.coordinator
+        return vc
     }
     
     func updateUIViewController(_ uiViewController: UIViewControllerType, context: Context) {
-        <#code#>
     }
     
-    func makeCoordinator() -> () {
-        <#code#>
+    func makeCoordinator() -> Coordinator {
+        Coordinator(customView: self)
+    }
+    
+    class Coordinator: NSObject, CustomDelegate {
+        var parent: BarcodeScanPageView
+        
+        init(customView: BarcodeScanPageView){
+            self.parent = customView
+        }
+        
+        func didUpdateBarcodeResult(_ value: String?) {
+            parent.result = value
+        }
     }
     
 }
 
-class BarcodeScanPageViewController: UIViewController {
+class BarcodeScanPageViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+    
+    var customDelegate: CustomDelegate?
+    
     override func viewDidLoad() {
         let captureSession = AVCaptureSession()
         guard let captureDevice = AVCaptureDevice.default(for: .video) else {
@@ -63,28 +91,27 @@ class BarcodeScanPageViewController: UIViewController {
         view.layer.addSublayer(previewLayer)
         previewLayer.frame = view.frame
     }
-}
-
-extension BarcodeScanPageViewController: AVCaptureMetadataOutputObjectsDelegate {
+    
     func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
         if let first = metadataObjects.first {
-            guard let readableObject = first as? AVMetadataMachineReadableCodeObject else {
-                return
-            }
-            guard let stringValue = readableObject.stringValue else {
-                return
-            }
+           guard let readableObject = first as? AVMetadataMachineReadableCodeObject else {
+               return
+           }
+           guard let stringValue = readableObject.stringValue else {
+               return
+           }
 
-            found(code: stringValue)
+            self.bindDataBarcode(result: stringValue)
 
-        }else{
-            print("Not able to read the code! Please try again")
-        }
+       }else{
+           print("Not able to read the code! Please try again")
+       }
     }
-
-    func found(code: String){
-        print(code)
+    
+    func bindDataBarcode(result: String?){
+        customDelegate?.didUpdateBarcodeResult(result)
     }
+    
 }
 
 
